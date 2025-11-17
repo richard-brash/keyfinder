@@ -38,13 +38,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const out: any = { ok: true, authSource, tokenMasked: mask(token), tokenLength: token.length };
 
-  // One-time reveal option: only include the full token when explicitly requested.
-  // This is intentionally gated to the authenticated session and must be removed after debugging.
-  const reveal = String(req.query.reveal || req.query.show || '').toLowerCase();
-  if (reveal === '1' || reveal === 'true' || reveal === 'yes') {
-    out.fullToken = token; // include raw token for the caller to test with curl
-  }
-
   try {
     const meResp = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${token}` } });
     const meStatus = meResp.status;
