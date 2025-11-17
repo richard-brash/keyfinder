@@ -15,15 +15,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userId = cookies.user_id as string | undefined;
   const localAccess = cookies.access_token as string | undefined;
 
+  const debug = req.query.debug === '1' || req.query.debug === 'true';
+
   let token: string | null = null;
-  if (userId) token = await getAccessTokenForUser(userId);
-  if (!token && localAccess) token = localAccess;
+  let authSource: 'db' | 'cookie' | null = null;
+  if (userId) {
+    token = await getAccessTokenForUser(userId);
+    if (token) authSource = 'db';
+  }
+  if (!token && localAccess) {
+    token = localAccess;
+    authSource = 'cookie';
+  }
   if (!token) return res.status(401).json({ error: 'not_authenticated' });
 
   try {
     const data = await fetchWithToken(`https://api.spotify.com/v1/audio-features/${id}`, token);
-    return res.status(200).json({ ok: true, id, data });
+    const out: any = { ok: true, id, data };
+    if (debug) {
+      out._debug = {
+        authSource,
+        hasUserId: !!userId,
+        usedLocalAccessCookie: !!localAccess,
+        dbAvailable: Boolean(process.env.DATABASE_URL),
+      };
+    }
+    return res.status(200).json(out);
   } catch (e: any) {
+    if (debug) {
+      return res.status(500).json({ error: 'fetch_failed', message: String(e), _debug: { authSource, hasUserId: !!userId } });
+    }
     return res.status(500).json({ error: 'fetch_failed', message: String(e) });
   }
 }
