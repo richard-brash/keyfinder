@@ -30,16 +30,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!token) return res.status(401).json({ error: 'not_authenticated' });
 
   try {
-    const data = await fetchWithToken(`https://api.spotify.com/v1/audio-features/${id}`, token);
-    const out: any = { ok: true, id, data };
+    const resp = await fetch(`https://api.spotify.com/v1/audio-features/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    const status = resp.status;
+    let body: any = null;
+    try {
+      body = await resp.json();
+    } catch (e) {
+      try {
+        body = await resp.text();
+      } catch (e2) {
+        body = null;
+      }
+    }
+
+    const out: any = { ok: true, id, data: body };
     if (debug) {
       out._debug = {
         authSource,
         hasUserId: !!userId,
         usedLocalAccessCookie: !!localAccess,
         dbAvailable: Boolean(process.env.DATABASE_URL),
+        spotifyStatus: status,
+        spotifyBodySample: typeof body === 'object' ? (body.error ? body.error : Object.keys(body).slice(0,5)) : String(body).slice(0,200),
       };
     }
+
+    // If Spotify responded non-2xx, mirror that status for easier debugging
+    if (status >= 400 && !debug) {
+      return res.status(status).json({ error: 'spotify_error', status, body });
+    }
+
     return res.status(200).json(out);
   } catch (e: any) {
     if (debug) {

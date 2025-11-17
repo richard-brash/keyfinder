@@ -27,14 +27,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let featsResp: any = null;
   if (ids.length) {
     try {
-      featsResp = await fetchWithToken(`https://api.spotify.com/v1/audio-features?ids=${ids.join(',')}`, token);
-      if (featsResp && featsResp.audio_features) {
-        featsResp.audio_features.forEach((f: any) => {
-          if (f) features[f.id] = f;
-        });
+      const resp = await fetch(`https://api.spotify.com/v1/audio-features?ids=${ids.join(',')}`, { headers: { Authorization: `Bearer ${token}` } });
+      const status = resp.status;
+      let body: any = null;
+      try {
+        body = await resp.json();
+      } catch (e) {
+        try { body = await resp.text(); } catch (e2) { body = null; }
+      }
+
+      featsResp = body;
+      if (body && body.audio_features) {
+        body.audio_features.forEach((f: any) => { if (f) features[f.id] = f; });
+      }
+
+      if (debug) {
+        // include spotify response details in the debug output further down
+        // we'll attach status/body via featsRespStatus and featsRespBody in the returned debug payload
+        (featsResp as any).__status = status;
+        (featsResp as any).__bodySample = typeof body === 'object' ? (body.audio_features ? `audio_features:${body.audio_features.length}` : Object.keys(body).slice(0,5)) : String(body).slice(0,200);
+      } else if (status >= 400) {
+        return res.status(status).json({ error: 'spotify_error', status, body });
       }
     } catch (e: any) {
-      // Surface fetch error in debug mode
       if (debug) {
         return res.status(500).json({ error: 'audio-features-fetch-failed', message: String(e) });
       }
