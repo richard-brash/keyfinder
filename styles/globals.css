@@ -1,0 +1,5 @@
+:root{--bg:#f7f7f8;--fg:#111}
+html,body,#__next{height:100%}
+body{margin:0;font-family:Inter,system-ui,Arial, sans-serif;background:var(--bg);color:var(--fg)}
+.container{max-width:900px;margin:40px auto;padding:16px}
+.btn{display:inline-block;padding:10px 14px;background:#1DB954;color:white;border-radius:6px;text-decoration:none}
