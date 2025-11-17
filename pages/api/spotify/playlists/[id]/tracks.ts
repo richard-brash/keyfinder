@@ -15,8 +15,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const localAccess = cookies.access_token as string | undefined;
 
   let token: string | null = null;
-  if (userId) token = await getAccessTokenForUser(userId);
-  if (!token && localAccess) token = localAccess;
+  let authSource: 'db' | 'cookie' | null = null;
+  if (userId) {
+    token = await getAccessTokenForUser(userId);
+    if (token) authSource = 'db';
+  }
+  if (!token && localAccess) {
+    token = localAccess;
+    authSource = 'cookie';
+  }
   if (!token) return res.status(401).json({ error: 'not_authenticated' });
 
   const tracksResp = await fetchWithToken(`https://api.spotify.com/v1/playlists/${id}/tracks?limit=100`, token);
@@ -43,7 +50,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (debug) {
         // include spotify response details in the debug output further down
-        // we'll attach status/body via featsRespStatus and featsRespBody in the returned debug payload
         (featsResp as any).__status = status;
         (featsResp as any).__bodySample = typeof body === 'object' ? (body.audio_features ? `audio_features:${body.audio_features.length}` : Object.keys(body).slice(0,5)) : String(body).slice(0,200);
       } else if (status >= 400) {
@@ -68,8 +74,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         requestedIdsCount: ids.length,
         requestedIdsSample: ids.slice(0, 10),
         itemsCount: items.length,
+        authSource,
       },
       featsSample: safeFeats,
+      featsRespStatus: (featsResp as any)?.__status ?? null,
+      featsRespBodySample: (featsResp as any)?.__bodySample ?? null,
       tracksSample: items.slice(0, 6).map((it: any) => ({ id: it.track?.id ?? null, name: it.track?.name ?? null })),
       items: withFeatures,
     });
