@@ -66,6 +66,23 @@ export default function PlaylistPage() {
                 {showIds && (
                   <div style={{ fontSize: 12, color: '#666' }}>ID: {t.track?.id ?? '—'}</div>
                 )}
+                <div style={{ marginTop: 6 }}>
+                  {t.track?.id ? (
+                    <button
+                      onClick={() => {
+                        // open per-track audio-features in a new tab (will use cookies)
+                        if (!t.track?.id) return;
+                        const url = `/api/spotify/audio-features/${t.track.id}`;
+                        window.open(url, '_blank');
+                      }}
+                      style={{ fontSize: 12, marginLeft: 6, cursor: 'pointer' }}
+                    >
+                      Inspect features
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 12, color: '#999', marginLeft: 6 }}>No track ID</span>
+                  )}
+                </div>
               </div>
               <div style={{ fontSize: 12, color: '#444' }}>
                 <span>Key: {t.audio_features ? keyToPitch(t.audio_features.key, t.audio_features.mode) : '—'}</span>
