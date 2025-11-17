@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import cookie from 'cookie';
-import { getAccessTokenForUser } from '../../../../lib/spotify';
+import { getAccessTokenForUser } from '../../../../../lib/spotify';
 
 async function fetchWithToken(url: string, token: string) {
   const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
