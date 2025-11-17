@@ -43,7 +43,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const meStatus = meResp.status;
     let meBody: any = null;
     try { meBody = await meResp.json(); } catch (e) { meBody = await meResp.text(); }
-    out.me = { status: meStatus, body: meBody };
+    const meHeaders = Object.fromEntries(meResp.headers ? (meResp.headers as any).entries() : []);
+    out.me = { status: meStatus, headers: meHeaders, body: meBody };
   } catch (e: any) {
     out.me = { error: String(e) };
   }
@@ -53,9 +54,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const featsStatus = featsResp.status;
     let featsBody: any = null;
     try { featsBody = await featsResp.json(); } catch (e) { featsBody = await featsResp.text(); }
-    out.features = { status: featsStatus, body: featsBody };
+    const featsHeaders = Object.fromEntries(featsResp.headers ? (featsResp.headers as any).entries() : []);
+    out.features = { status: featsStatus, headers: featsHeaders, body: featsBody };
   } catch (e: any) {
     out.features = { error: String(e) };
+  }
+
+  // Also fetch the track metadata and the batch audio-features endpoint for extra clues
+  try {
+    const trackResp = await fetch(`https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}`, { headers: { Authorization: `Bearer ${token}` } });
+    const trackStatus = trackResp.status;
+    let trackBody: any = null;
+    try { trackBody = await trackResp.json(); } catch (e) { trackBody = await trackResp.text(); }
+    const trackHeaders = Object.fromEntries(trackResp.headers ? (trackResp.headers as any).entries() : []);
+    out.track = { status: trackStatus, headers: trackHeaders, body: trackBody };
+  } catch (e: any) {
+    out.track = { error: String(e) };
+  }
+
+  try {
+    const ids = encodeURIComponent(trackId);
+    const batchResp = await fetch(`https://api.spotify.com/v1/audio-features?ids=${ids}`, { headers: { Authorization: `Bearer ${token}` } });
+    const batchStatus = batchResp.status;
+    let batchBody: any = null;
+    try { batchBody = await batchResp.json(); } catch (e) { batchBody = await batchResp.text(); }
+    const batchHeaders = Object.fromEntries(batchResp.headers ? (batchResp.headers as any).entries() : []);
+    out.featuresBatch = { status: batchStatus, headers: batchHeaders, body: batchBody };
+  } catch (e: any) {
+    out.featuresBatch = { error: String(e) };
   }
 
   return res.status(200).json(out);
