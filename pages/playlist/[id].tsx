@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { keyToPitch } from '../../lib/spotify';
+import { keyToPitch } from '../../lib/music';
 import { useRouter } from 'next/router';
 
 export default function PlaylistPage() {
