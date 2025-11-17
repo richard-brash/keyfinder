@@ -1,4 +1,4 @@
-import { pool } from './db';
+import { pool, dbAvailable } from './db';
 
 export function keyToPitch(key: number | null, mode: number | null) {
   if (key === null || key === undefined) return 'Unknown';
@@ -10,7 +10,7 @@ export function keyToPitch(key: number | null, mode: number | null) {
 }
 
 export async function getAccessTokenForUser(spotifyId: string): Promise<string | null> {
-  if (!process.env.DATABASE_URL) return null;
+  if (!dbAvailable || !pool) return null;
 
   const r = await pool.query('SELECT refresh_token FROM users WHERE spotify_id = $1', [spotifyId]);
   if (!r.rows || r.rows.length === 0) return null;
@@ -34,7 +34,7 @@ export async function getAccessTokenForUser(spotifyId: string): Promise<string |
   const accessToken = json.access_token as string | undefined;
   const newRefresh = json.refresh_token as string | undefined;
 
-  if (newRefresh) {
+  if (newRefresh && pool) {
     await pool.query('UPDATE users SET refresh_token = $1, updated_at = now() WHERE spotify_id = $2', [newRefresh, spotifyId]);
   }
 

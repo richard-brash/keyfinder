@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import cookie from 'cookie';
-import { pool, ensureSchema } from '../../../lib/db';
+import { pool, ensureSchema, dbAvailable } from '../../../lib/db';
 
 async function exchangeCode(code: string) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // if DATABASE_URL is set, persist refresh_token and set a server-side user cookie
   try {
-    if (process.env.DATABASE_URL) {
+    if (dbAvailable && pool) {
       await ensureSchema();
       // fetch spotify profile to get spotify user id
       const profile = await getSpotifyProfile(access_token);
@@ -64,7 +64,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ]);
       }
     } else {
-      // fallback: set access_token cookie so local dev works
+      // Fallback: database not configured (e.g. missing DATABASE_URL).
+      // Use cookies so local dev still works; in production you should
+      // provision Postgres and set `DATABASE_URL` in Railway environment.
+      console.warn('Database not available; falling back to cookie-based tokens. Set DATABASE_URL to enable persistent sessions.');
       res.setHeader('Set-Cookie', [
         cookie.serialize('access_token', access_token, { httpOnly: false, path: '/', maxAge: expires_in }),
         cookie.serialize('refresh_token', refresh_token, { httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 30 })
