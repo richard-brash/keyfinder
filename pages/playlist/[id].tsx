@@ -11,6 +11,7 @@ export default function PlaylistPage() {
   const [showIds, setShowIds] = useState<boolean>(false);
   const [debugData, setDebugData] = useState<any | null>(null);
   const [debugLoading, setDebugLoading] = useState(false);
+  const [keysMap, setKeysMap] = useState<Record<string, { key: number; mode: 0|1; source?: string; confidence?: number }>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -23,6 +24,30 @@ export default function PlaylistPage() {
 
     load();
   }, [id]);
+
+  // After tracks load, fetch keys for tracks lacking audio_features
+  useEffect(() => {
+    if (!tracks) return;
+    const pending = tracks
+      .map((t: any) => t?.track?.id)
+      .filter((tid: any) => typeof tid === 'string' && tid.length > 0) as string[];
+    if (!pending.length) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const tid of pending) {
+        if (cancelled) break;
+        if (keysMap[tid]) continue;
+        try {
+          const r = await axios.get(`/api/keys/${encodeURIComponent(tid)}`);
+          if (r.data?.ok && r.data?.key !== undefined && r.data?.mode !== undefined) {
+            setKeysMap(prev => ({ ...prev, [tid]: { key: r.data.key, mode: r.data.mode, source: r.data.source, confidence: r.data.confidence } }));
+          }
+        } catch {}
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tracks]);
 
   return (
     <main className="container">
@@ -85,7 +110,15 @@ export default function PlaylistPage() {
                 </div>
               </div>
               <div style={{ fontSize: 12, color: '#444' }}>
-                <span>Key: {t.audio_features ? keyToPitch(t.audio_features.key, t.audio_features.mode) : '—'}</span>
+                <span>
+                  Key: {
+                    t.audio_features
+                      ? keyToPitch(t.audio_features.key, t.audio_features.mode)
+                      : (t.track?.id && keysMap[t.track.id]
+                          ? `${keyToPitch(keysMap[t.track.id].key, keysMap[t.track.id].mode)}${keysMap[t.track.id].source ? ` (${keysMap[t.track.id].source})` : ''}`
+                          : '—')
+                  }
+                </span>
                 <span style={{ marginLeft: 12 }}>Tempo: {t.audio_features ? Math.round(t.audio_features.tempo) : '—'}</span>
                 <span style={{ marginLeft: 12 }}>Time Sig: {t.audio_features ? t.audio_features.time_signature : '—'}</span>
                 <span style={{ marginLeft: 12 }}>Danceability: {t.audio_features ? t.audio_features.danceability.toFixed(2) : '—'}</span>

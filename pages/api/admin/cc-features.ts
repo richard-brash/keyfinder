@@ -36,7 +36,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const featsResp = await fetch(`https://api.spotify.com/v1/audio-features/${encodeURIComponent(trackId)}`, { headers: authHeader });
       const status = featsResp.status;
       let body: any = null; try { body = await featsResp.json(); } catch { body = await featsResp.text(); }
-      out.features = { status, body };
+      const headersObj = Object.fromEntries((featsResp.headers as any).entries());
+      out.features = { status, body, headers: headersObj };
     } catch (e: any) {
       out.features = { error: String(e) };
     }
@@ -45,7 +46,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const batchResp = await fetch(`https://api.spotify.com/v1/audio-features?ids=${encodeURIComponent(trackId)}`, { headers: authHeader });
       const status = batchResp.status;
       let body: any = null; try { body = await batchResp.json(); } catch { body = await batchResp.text(); }
-      out.featuresBatch = { status, body };
+      const headersObj = Object.fromEntries((batchResp.headers as any).entries());
+      out.featuresBatch = { status, body, headers: headersObj };
     } catch (e: any) {
       out.featuresBatch = { error: String(e) };
     }
@@ -55,7 +57,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const tr = await fetch(`https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}`, { headers: authHeader });
       const status = tr.status;
       let body: any = null; try { body = await tr.json(); } catch { body = await tr.text(); }
-      out.track = { status, body };
+      const headersObj = Object.fromEntries((tr.headers as any).entries());
+      out.track = { status, body, headers: headersObj };
     } catch (e: any) {
       out.track = { error: String(e) };
     }
