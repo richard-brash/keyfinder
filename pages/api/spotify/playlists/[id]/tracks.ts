@@ -26,7 +26,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!token) return res.status(401).json({ error: 'not_authenticated' });
 
-  const tracksResp = await fetchWithToken(`https://api.spotify.com/v1/playlists/${id}/tracks?limit=100`, token);
+  const tracksUrl = `https://api.spotify.com/v1/playlists/${id}/tracks?limit=100`;
+  const tracksHttpResp = await fetch(tracksUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const tracksStatus = tracksHttpResp.status;
+  
+  if (!tracksHttpResp.ok) {
+    const errorBody = await tracksHttpResp.text();
+    return res.status(tracksStatus).json({ 
+      error: 'spotify_tracks_error', 
+      status: tracksStatus, 
+      message: errorBody,
+      authSource 
+    });
+  }
+  
+  const tracksResp = await tracksHttpResp.json();
   const items = tracksResp.items || [];
 
   const ids = items.map((it: any) => it.track && it.track.id).filter(Boolean).slice(0, 100);
