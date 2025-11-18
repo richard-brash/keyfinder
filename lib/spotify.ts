@@ -31,3 +31,24 @@ export async function getAccessTokenForUser(spotifyId: string): Promise<string |
 
   return accessToken || null;
 }
+
+export async function getClientCredentialsToken(): Promise<string | null> {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const resp = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${basic}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({ grant_type: 'client_credentials' }).toString()
+  });
+  try {
+    const json = await resp.json();
+    if (json && json.access_token) return json.access_token as string;
+  } catch {}
+  return null;
+}

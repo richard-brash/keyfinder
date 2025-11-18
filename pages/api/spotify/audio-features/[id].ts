@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import cookie from 'cookie';
-import { getAccessTokenForUser } from '../../../../lib/spotify';
+import { getAccessTokenForUser, getClientCredentialsToken } from '../../../../lib/spotify';
 
 async function fetchWithToken(url: string, token: string) {
   const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const resp = await fetch(`https://api.spotify.com/v1/audio-features/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-    const status = resp.status;
+    let status = resp.status;
     let body: any = null;
     try {
       body = await resp.json();
@@ -43,6 +43,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    let fallbackUsed = false;
+    let fallbackStatus: number | null = null;
+
+    if (status >= 400) {
+      const ccToken = await getClientCredentialsToken();
+      if (ccToken) {
+        const resp2 = await fetch(`https://api.spotify.com/v1/audio-features/${id}`, { headers: { Authorization: `Bearer ${ccToken}` } });
+        fallbackUsed = true;
+        fallbackStatus = resp2.status;
+        status = resp2.status;
+        try { body = await resp2.json(); } catch { try { body = await resp2.text(); } catch {} }
+      }
+    }
+
     const out: any = { ok: true, id, data: body };
     if (debug) {
       out._debug = {
@@ -51,6 +65,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         usedLocalAccessCookie: !!localAccess,
         dbAvailable: Boolean(process.env.DATABASE_URL),
         spotifyStatus: status,
+        fallbackUsed,
+        fallbackStatus,
         spotifyBodySample: typeof body === 'object' ? (body.error ? body.error : Object.keys(body).slice(0,5)) : String(body).slice(0,200),
       };
     }
