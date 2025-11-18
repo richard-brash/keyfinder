@@ -36,7 +36,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!token) return res.status(401).json({ error: 'no_token_available' });
 
+  const revealRequested = String(req.query.reveal || '').toLowerCase() === '1' || String(req.query.reveal || '').toLowerCase() === 'true';
+  const revealSecret = process.env.TOKEN_REVEAL_SECRET || '';
+  const providedSecret = String(req.query.secret || '');
+
   const out: any = { ok: true, authSource, tokenMasked: mask(token), tokenLength: token.length };
+  if (revealRequested && revealSecret && providedSecret && providedSecret === revealSecret) {
+    out.accessToken = token; // TEMPORARY: guarded by TOKEN_REVEAL_SECRET
+    out.reveal = true;
+  }
 
   try {
     const meResp = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${token}` } });
